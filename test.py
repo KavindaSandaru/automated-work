@@ -28,13 +28,11 @@ driver.set_window_size(1920, 1080)
 # ==================================
 
 sniper_url = (
-    "http://sniper.rezos.io/#dash_board/"
-    "reg1.gw.cib.gateway.use1.aws.rezos.io:8500"
+    "YOUR_SNIPER_DASHBOARD_URL"
 )
 
 grafana_url = (
-    "http://grafana.rezos.io/d/Toutmappers/"
-    "toutmappers-live?orgId=1&refresh=5s"
+    "YOUR_GRAFANA_DASHBOARD_URL"
 )
 
 # ==================================
