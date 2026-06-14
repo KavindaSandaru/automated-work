@@ -8,10 +8,61 @@ import time
 import pytesseract
 import winsound
 import pygetwindow as gw
+from datetime import datetime, timedelta
+import sys
 
 pytesseract.pytesseract.tesseract_cmd = (
     r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 )
+
+# ==========================
+# SHIFT SELECTION
+# ==========================
+
+print("\nSelect Shift")
+print("1. 3PM - 7PM")
+print("2. 7PM - 4AM")
+
+choice = input("Enter shift (1 or 2): ").strip()
+
+now = datetime.now()
+
+if choice == "1":
+    shift_name = "3PM - 7PM"
+
+    shift_end = now.replace(
+        hour=19,
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+
+elif choice == "2":
+    shift_name = "7PM - 4AM"
+
+    shift_end = now.replace(
+        hour=4,
+        minute=0,
+        second=0,
+        microsecond=0
+    )
+
+    if now.hour < 4:
+        pass  # already after midnight, end today at 4 AM
+    else:
+        shift_end += timedelta(days=1)
+
+else:
+    print("Invalid shift selected.")
+    sys.exit()
+
+print(f"\nShift Selected: {shift_name}")
+print(f"Current Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"Shift Ends: {shift_end.strftime('%Y-%m-%d %H:%M:%S')}")
+
+if datetime.now() >= shift_end:
+    print("\nThe selected shift has already ended.")
+    sys.exit()
 
 # ==================================
 # FIREFOX
@@ -28,11 +79,11 @@ driver.set_window_size(1920, 1080)
 # ==================================
 
 sniper_url = (
-    "YOUR_SNIPER_DASHBOARD_URL"
+    "your_sniper_url"
 )
 
 grafana_url = (
-    "YOUR_GRAFANA_DASHBOARD_URL"
+    "your_grafana_url"
 )
 
 # ==================================
@@ -211,6 +262,19 @@ def play_alarm():
 # ==================================
 
 while True:
+    
+     # ======================
+    # CHECK SHIFT END
+    # ======================
+    if datetime.now() >= shift_end:
+        print("\nShift ended. Closing application...")
+
+        try:
+            driver.quit()
+        except:
+            pass
+
+        sys.exit()
 
     try:
 
@@ -284,7 +348,19 @@ while True:
         print("\nCycle complete.")
         print("Waiting 1 hour...")
 
-        time.sleep(3600)
+        for _ in range(3600):
+
+            if datetime.now() >= shift_end:
+                print("\nShift ended. Closing application...")
+
+                try:
+                    driver.quit()
+                except:
+                    pass
+
+                sys.exit()
+
+            time.sleep(1)
 
     except Exception as e:
 
@@ -292,4 +368,18 @@ while True:
 
         print("Retrying in 5 minutes...")
 
-        time.sleep(300)
+        for _ in range(300):
+
+            if datetime.now() >= shift_end:
+                print("\nShift ended. Closing application...")
+
+                try:
+                    driver.quit()
+                except:
+                    pass
+
+                sys.exit()
+                
+            time.sleep(1)
+
+        
