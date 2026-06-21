@@ -11,6 +11,10 @@ import pygetwindow as gw
 from datetime import datetime, timedelta
 import sys
 
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 pytesseract.pytesseract.tesseract_cmd = (
     r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 )
@@ -72,18 +76,36 @@ options = Options()
 options.binary_location = r"C:\Program Files\Mozilla Firefox\firefox.exe"
 
 driver = webdriver.Firefox(options=options)
-driver.set_window_size(1920, 1080)
+
+driver.maximize_window()
 
 # ==================================
 # DASHBOARD URLS
 # ==================================
 
 sniper_url = (
-    "your_sniper_url"
+    ""
 )
 
 grafana_url = (
-    "your_grafana_url"
+    ""
+)
+
+
+nagios_url = (
+    ""
+)
+
+outlook_url = (
+    ""
+)
+
+kibana_reservation_url = (
+    ""
+)
+
+kibana_availability_url = (
+    ""
 )
 
 # ==================================
@@ -95,6 +117,10 @@ driver.get(sniper_url)
 driver.execute_script(
     f"window.open('{grafana_url}', '_blank');"
 )
+driver.execute_script(f"window.open('{nagios_url}', '_blank');")
+driver.execute_script(f"window.open('{outlook_url}', '_blank');")
+driver.execute_script(f"window.open('{kibana_reservation_url}', '_blank');")
+driver.execute_script(f"window.open('{kibana_availability_url}', '_blank');")
 
 input(
     "\nLogin to Sniper and Grafana.\n"
@@ -110,6 +136,40 @@ input(
     "\nOpen WhatsApp Desktop and make sure it is visible.\n"
     "Press ENTER when ready..."
 )
+
+# ==================================
+# BUILD TAB MAP
+# ==================================
+
+tab_map = {}
+
+for handle in driver.window_handles:
+
+    driver.switch_to.window(handle)
+
+    url = driver.current_url.lower()
+
+    print(url)
+
+    if "sniper" in url:
+        tab_map["sniper"] = handle
+
+    elif "toutmappers-live" in url:
+        tab_map["grafana"] = handle
+
+    elif "nagios" in url:
+        tab_map["nagios"] = handle
+
+    elif "40c5e6c0" in url:
+        tab_map["kibana_res"] = handle
+
+    elif "d22a4c20" in url:
+        tab_map["kibana_avail"] = handle
+
+print("\nTAB MAP:")
+print(tab_map)
+
+input("\nPress ENTER to continue...")
 
 pyautogui.FAILSAFE = True
 pyautogui.PAUSE = 1
@@ -183,6 +243,39 @@ def open_chat(chat_name):
     print("Step 4: Done")
 
 
+from selenium.webdriver.common.by import By
+
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+def capture_kibana_chart(output_file):
+
+    driver.execute_script(
+        "window.scrollTo(0, 900);"
+    )
+
+    time.sleep(3)
+
+    driver.save_screenshot("kibana_full.png")
+
+    img = Image.open("kibana_full.png")
+
+    width, height = img.size
+
+    crop = img.crop(
+        (
+            0,
+            620,
+            width,
+            height
+        )
+    )
+
+    crop.save(output_file)
+
+    print(f"Saved {output_file}")
+
 def send_image(image_path):
     print(f"Sending {image_path}")
 
@@ -225,27 +318,41 @@ def check_for_critical_alert():
         ).lower()
 
         print("\nOCR RESULT:")
-        print(text[:500])
-
-        print("\nFULL OCR TEXT:")
         print(text)
 
-        # Healthy state
-        if "no critical servers" in text:
-            return False
+        # Healthy indicators
+        healthy_patterns = [
+            "no critical",
+            "no critical serve",
+            "no critical server",
+            "no critical servers"
+        ]
 
-        # Explicit critical detection
-        if "critical" in text:
-            return True
+        for pattern in healthy_patterns:
+            if pattern in text:
+                print("Healthy state detected")
+                return False
 
-        # OCR uncertain -> treat as alert
-        return True
+        # Critical indicators
+        critical_patterns = [
+            "critical",
+            "critical server",
+            "critical servers"
+        ]
+
+        for pattern in critical_patterns:
+            if pattern in text:
+                print("Critical state detected")
+                return True
+
+        print("OCR uncertain - treating as HEALTHY")
+        return False
 
     except Exception as e:
         print(f"OCR Error: {e}")
 
-        # OCR failed -> treat as alert
-        return True
+        # safer than waking you up for OCR failures
+        return False
 
 
 def play_alarm():
@@ -286,7 +393,7 @@ while True:
         # SNIPER SCREENSHOT
         # ==================================
 
-        driver.switch_to.window(driver.window_handles[0])
+        driver.switch_to.window(tab_map["sniper"])
 
         time.sleep(3)
 
@@ -294,7 +401,16 @@ while True:
 
         img = Image.open("sniper_full.png")
 
-        cropped = img.crop((225, 75, 1710, 355))
+        width, height = img.size
+
+        cropped = img.crop(
+            (
+                220,
+                70,
+                width - 20,
+                620
+            )
+        )
 
         cropped.save("sniper.png")
 
@@ -312,13 +428,27 @@ while True:
         # GRAFANA SCREENSHOT
         # ==================================
 
-        driver.switch_to.window(driver.window_handles[1])
+        driver.switch_to.window(tab_map["grafana"])
 
         time.sleep(5)
 
         driver.save_screenshot("grafana.png")
 
         print("Saved grafana.png")
+
+        # Reservation dashboard
+        driver.switch_to.window(tab_map["kibana_res"])
+
+        capture_kibana_chart(
+        "kibana_reservations.png"
+        )
+
+        # Availability dashboard
+        driver.switch_to.window(tab_map["kibana_avail"])
+
+        capture_kibana_chart(
+        "kibana_availability.png"
+        )
 
         # ==================================
         # SEND STATUS MESSAGE
@@ -342,6 +472,8 @@ while True:
 
         send_image("sniper.png")
         send_image("grafana.png")
+        send_image("kibana_reservations.png")
+        send_image("kibana_availability.png")
 
         print("Sent screenshots")
 
